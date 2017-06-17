@@ -6,17 +6,21 @@
 
 #define MIN2(A, B) ((A < B) ? A : B)
 
-#define NUM_GOODS           4
+#define NUM_GOODS                   4
 
-#define MAX_AGENTS          100
+#define MAX_AGENTS                  100
 
-#define MAX_REQUESTS        500
+#define MAX_REQUESTS                500
 
-#define MAX_FOOD            50
+#define MAX_FOOD                    50
 
-#define TRADE_SUCCESS       1
+#define TRADE_SUCCESS               1
 
-#define TRADE_FAILURE       0
+#define TRADE_FAILURE               0
+
+#define MEAN_SHIFT                  0.05
+
+#define INTERVAL_ADJUSTMENT         0.05
 
 typedef enum {
     WOODWORKER,
@@ -59,7 +63,8 @@ typedef struct {
 } Ask;
 
 typedef struct {
-    Agent agents[MAX_AGENTS];
+    int num_agents;
+    Agent *agents[MAX_AGENTS];
     int num_bids;
     Bid *bids[MAX_REQUESTS];
     int num_asks;
@@ -185,14 +190,24 @@ void remove_top_ask(Market *m)
     m->num_asks--;
 }
 
-void update_price_model(Agent *a, float price, int success)
+void update_price_model(Agent *a, Good g, float price, int success)
 {
+    int m = (a->p[g].lower_bound + a->p[g].upper_bound) / 2.0;
+    a->p[g].lower_bound += (price - m) * MEAN_SHIFT;
+    a->p[g].upper_bound += (price - m) * MEAN_SHIFT;
+    if (success) {
+        a->p[g].lower_bound += (m - a->p[g].lower_bound) * INTERVAL_ADJUSTMENT;
+        a->p[g].upper_bound += (m - a->p[g].upper_bound) * INTERVAL_ADJUSTMENT;
+    } else {
+        a->p[g].lower_bound -= (m - a->p[g].lower_bound) * INTERVAL_ADJUSTMENT;
+        a->p[g].upper_bound -= (m - a->p[g].upper_bound) * INTERVAL_ADJUSTMENT;
+    }
 }
 
 void resolve_offers(Market *m)
 {
     float quantity;
-    float price;
+    float price, total_price = 0.0, total_quantity = 0.0;
     Bid *top_bid;
     Ask *top_ask;
     qsort(m->bids, m->num_bids, sizeof(Bid), cmp_offer); 
@@ -203,6 +218,8 @@ void resolve_offers(Market *m)
         top_ask = m->asks[0];
         quantity = MIN2(top_bid->quantity, top_ask->quantity);
         price = (top_bid->price + top_ask->price) / 2.0;
+        total_price += price;
+        total_quantity += quantity;
 
         // Exchange
         top_bid->quantity -= quantity;
@@ -213,8 +230,8 @@ void resolve_offers(Market *m)
         top_ask->agent->currency += price * quantity;
 
         // Update price models
-        update_price_model(top_bid->agent, price, TRADE_SUCCESS);
-        update_price_model(top_ask->agent, price, TRADE_SUCCESS);
+        update_price_model(top_bid->agent, top_bid->good, price, TRADE_SUCCESS);
+        update_price_model(top_ask->agent, top_ask->good, price, TRADE_SUCCESS);
 
         if (top_bid->quantity == 0) {
             remove_top_bid(m);
@@ -225,13 +242,13 @@ void resolve_offers(Market *m)
     }
 
     // Deal with failed offers
+    price = total_price / total_quantity;
     while (m->num_bids > 0) {
-        update_price_model(top_bid->agent, price, TRADE_FAILURE);
+        update_price_model(top_bid->agent, top_bid->good, price, TRADE_FAILURE);
         remove_top_bid(m);
     }
-
     while (m->num_asks > 0) {
-        update_price_model(top_bid->agent, price, TRADE_FAILURE);
+        update_price_model(top_ask->agent, top_ask->good, price, TRADE_FAILURE);
         remove_top_ask(m);
     }
 }
@@ -240,15 +257,30 @@ void update_market(Market *m)
 {
     int i;
     for (i = 0; i < MAX_AGENTS; i++) {
-        perform_consumption(&(m->agents[i]));
-        perform_production(&(m->agents[i]));
-        create_bids(m, &(m->agents[i]));
-        create_asks(m, &(m->agents[i]));
+        perform_consumption(m->agents[i]);
+        perform_production(m->agents[i]);
+        create_bids(m, m->agents[i]);
+        create_asks(m, m->agents[i]);
     }
     resolve_offers(m);
 }
 
+void create_agent(Market *m)
+{
+}
+
+void market_init(Market *m)
+{
+    m->num_bids = m->num_asks = 0;
+    m->num_agents = 0;
+    while (m->num_agents < MAX_AGENTS) {
+        create_agent(m);
+    }
+}
+
 int main()
 {
+    Market m;
+    market_init(&m);
     return EXIT_SUCCESS;
 }
