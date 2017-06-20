@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 
 #define BETWEEN(X, A, B) ((X < A) ? A : ((X > B) ? B : X))
@@ -8,7 +9,9 @@
 
 #define NUM_GOODS                   4
 
-#define MAX_AGENTS                  100
+#define NUM_ROLES                   4
+
+#define MAX_AGENTS                  10
 
 #define MAX_REQUESTS                500
 
@@ -21,6 +24,16 @@
 #define MEAN_SHIFT                  0.05
 
 #define INTERVAL_ADJUSTMENT         0.05
+
+#define INIT_CURRENCY               5.0
+
+#define MAX_LBOUND                  5.0
+
+#define MAX_MEAN                    10.0 
+
+#define ROUNDS                      10
+
+#define SEED                        1
 
 typedef enum {
     WOODWORKER,
@@ -52,14 +65,14 @@ typedef struct {
     Agent *agent;
     Good good;
     float price;
-    int quantity;
+    float quantity;
 } Bid;
 
 typedef struct {
     Agent *agent;
     Good good;
     float price;
-    int quantity;
+    float quantity;
 } Ask;
 
 typedef struct {
@@ -72,6 +85,47 @@ typedef struct {
     float mean;
 } Market;
 
+void print_agent(Agent *a)
+{
+    int i;
+    printf("Role: %d\n", a->role);
+    printf("Goods:\n");
+    for (i = 0; i < NUM_GOODS; i++) {
+        printf("%d: %f\n", i, a->good_quantity[i]);
+    }
+    printf("\n");
+}
+
+void print_bid(Bid *b)
+{
+}
+
+void print_ask(Ask *a)
+{
+}
+
+void print_market_info(Market *m)
+{
+    int i;
+    printf("Agents: %d\n", m->num_agents);
+    printf("Bids: %d\n", m->num_bids);
+    printf("Asks: %d\n", m->num_asks);
+    printf("Mean: %f\n", m->mean);
+
+/*
+    for (i = 0; i < m->num_agents; i++) {
+        print_agent(m->agents[i]);
+    }
+    for (i = 0; i < m->num_bids; i++) {
+        print_bid(m->bids[i]);
+    }
+    for (i = 0; i < m->num_asks; i++) {
+        print_ask(m->asks[i]);
+    }
+*/
+    printf("\n----------\n");
+}
+
 float price_guess(PriceBelief p)
 {
     float random = (float)rand() / (float)RAND_MAX;
@@ -79,21 +133,35 @@ float price_guess(PriceBelief p)
     return p.lower_bound + random * diff;
 }
 
-int determine_sale_quantity(float mean, PriceBelief p, float excess)
+float determine_sale_quantity(float mean, PriceBelief p, float excess)
 {
     float avg_belief = (p.lower_bound + p.upper_bound) / 2.0;
     float diff = p.upper_bound - p.lower_bound;
     float favorability = 0.5 + (mean - avg_belief) / diff;
     favorability = BETWEEN(favorability, 0.0, 1.0);
+    /*
+    printf("mean: %f\n", mean);
+    printf("avg_b: %f\n", avg_belief);
+    printf("diff: %f\n", diff);
+    printf("fav: %f\n", favorability);
+    printf("excess: %f\n", excess);
+    */
     return favorability * excess;
 }
 
-int determine_purchase_quantity(float mean, PriceBelief p, float available)
+float determine_purchase_quantity(float mean, PriceBelief p, float available)
 {
     float avg_belief = (p.lower_bound + p.upper_bound) / 2.0;
     float diff = p.upper_bound - p.lower_bound;
     float favorability = 0.5 - (mean - avg_belief) / diff;
     favorability = BETWEEN(favorability, 0.0, 1.0);
+    /*
+    printf("mean: %f\n", mean);
+    printf("avg_b: %f\n", avg_belief);
+    printf("diff: %f\n", diff);
+    printf("fav: %f\n", favorability);
+    printf("available: %f\n", available);
+    */
     return favorability * available;
 }
 
@@ -127,7 +195,7 @@ void perform_production(Agent *a)
 
 void create_bid(Market *m, Agent *a, Good g, float price, float quantity)
 {
-    if (m->num_bids < MAX_REQUESTS) {
+    if (m->num_bids < MAX_REQUESTS && quantity > 0) {
         m->bids[m->num_bids] = (Bid *)malloc(sizeof(Bid));
         m->bids[m->num_bids]->agent = a;
         m->bids[m->num_bids]->good = g;
@@ -139,6 +207,7 @@ void create_bid(Market *m, Agent *a, Good g, float price, float quantity)
 
 void create_bids(Market *m, Agent *a)
 {
+    //printf("Purchase quantity: %f\n", determine_purchase_quantity(m->mean, a->p[FOOD], MAX_FOOD));
     switch(a->role) {
         default:
             create_bid(m, a, FOOD, price_guess(a->p[FOOD]), determine_purchase_quantity(m->mean, a->p[FOOD], MAX_FOOD));
@@ -148,7 +217,7 @@ void create_bids(Market *m, Agent *a)
 
 void create_ask(Market *m, Agent *a, Good g, float price, float quantity)
 {
-    if (m->num_asks < MAX_REQUESTS) {
+    if (m->num_asks < MAX_REQUESTS && quantity > 0) {
         m->asks[m->num_asks] = (Ask *)malloc(sizeof(Ask));
         m->asks[m->num_asks]->agent = a;
         m->asks[m->num_asks]->good = g;
@@ -160,9 +229,10 @@ void create_ask(Market *m, Agent *a, Good g, float price, float quantity)
 
 void create_asks(Market *m, Agent *a)
 {
+    //printf("Sale quantity: %f\n", determine_sale_quantity(m->mean, a->p[FOOD], a->good_quantity[FOOD]));
     switch(a->role) {
         default:
-            create_ask(m, a, FOOD, price_guess(a->p[FOOD]), determine_sale_quantity(m->mean, a->p[FOOD], MAX_FOOD));
+            create_ask(m, a, FOOD, price_guess(a->p[FOOD]), determine_sale_quantity(m->mean, a->p[FOOD], a->good_quantity[FOOD]));
             break;
     }
 }
@@ -192,7 +262,7 @@ void remove_top_ask(Market *m)
 
 void update_price_model(Agent *a, Good g, float price, int success)
 {
-    int m = (a->p[g].lower_bound + a->p[g].upper_bound) / 2.0;
+    float m = (a->p[g].lower_bound + a->p[g].upper_bound) / 2.0;
     a->p[g].lower_bound += (price - m) * MEAN_SHIFT;
     a->p[g].upper_bound += (price - m) * MEAN_SHIFT;
     if (success) {
@@ -213,6 +283,7 @@ void resolve_offers(Market *m)
     qsort(m->bids, m->num_bids, sizeof(Bid), cmp_offer); 
     qsort(m->asks, m->num_asks, sizeof(Ask), cmp_offer); 
     while (m->num_bids > 0 && m->num_asks > 0) {
+        printf("Bids: %d\nAsks: %d\n", m->num_bids, m->num_asks);
         // Set up trade
         top_bid = m->bids[0];
         top_ask = m->asks[0];
@@ -221,9 +292,26 @@ void resolve_offers(Market *m)
         total_price += price;
         total_quantity += quantity;
 
+        printf("===\n");
+        printf("Top bid quantity: %f\n", top_bid->quantity);
+        printf("Top ask quantity: %f\n", top_ask->quantity);
+        if (top_bid->quantity < top_ask->quantity) {
+            top_ask->quantity -= top_bid->quantity;
+            top_bid->quantity = 0.0;
+        } else if (top_bid->quantity > top_ask->quantity) {
+            top_bid->quantity -= top_ask->quantity;
+            top_ask->quantity = 0.0;
+        } else {
+            top_bid->quantity = 0.0;
+            top_ask->quantity = 0.0;
+        }
+        printf("Top bid quantity: %f\n", top_bid->quantity);
+        printf("Top ask quantity: %f\n", top_ask->quantity);
+        printf("===\n");
+
         // Exchange
-        top_bid->quantity -= quantity;
-        top_ask->quantity -= quantity;
+        //top_bid->quantity -= quantity;
+        //top_ask->quantity -= quantity;
         top_bid->agent->good_quantity[top_bid->good] += quantity;
         top_ask->agent->good_quantity[top_ask->good] -= quantity;
         top_bid->agent->currency -= price * quantity;
@@ -242,12 +330,16 @@ void resolve_offers(Market *m)
     }
 
     // Deal with failed offers
-    price = total_price / total_quantity;
+    if (total_quantity != 0) {
+        m->mean = price = total_price / total_quantity;
+    }
     while (m->num_bids > 0) {
+        top_bid = m->bids[0];
         update_price_model(top_bid->agent, top_bid->good, price, TRADE_FAILURE);
         remove_top_bid(m);
     }
     while (m->num_asks > 0) {
+        top_ask = m->asks[0];
         update_price_model(top_ask->agent, top_ask->good, price, TRADE_FAILURE);
         remove_top_ask(m);
     }
@@ -263,24 +355,55 @@ void update_market(Market *m)
         create_asks(m, m->agents[i]);
     }
     resolve_offers(m);
+    printf("Updated market.\n");
+}
+
+PriceBelief rand_price_belief()
+{
+    PriceBelief r;
+    r.lower_bound = ((float)rand() / (float)RAND_MAX) * MAX_LBOUND;
+    r.upper_bound = r.lower_bound + ((float)rand() / (float)RAND_MAX) * MAX_MEAN;
+    return r;
 }
 
 void create_agent(Market *m)
 {
+    int i;
+    Agent *new;
+    if (m->num_agents == MAX_AGENTS)
+        return;
+    new = m->agents[m->num_agents] = malloc(sizeof(Agent));
+    new->role = rand() % NUM_ROLES;
+    for (i = 0; i < NUM_GOODS; i++) {
+        new->p[i] = rand_price_belief();
+        new->good_quantity[i] = 5.0;
+    }
+    new->currency = INIT_CURRENCY;
+    m->num_agents++;
 }
 
 void market_init(Market *m)
 {
     m->num_bids = m->num_asks = 0;
+    m->mean = (MAX_LBOUND + MAX_MEAN / 2.0);
     m->num_agents = 0;
     while (m->num_agents < MAX_AGENTS) {
         create_agent(m);
     }
 }
 
+
 int main()
 {
+    int n;
     Market m;
+    srand(SEED);
     market_init(&m);
+    print_market_info(&m);
+    for (n = 0; n < ROUNDS; n++) {
+        update_market(&m);
+        print_market_info(&m);
+        printf("Round complete.\n");
+    }
     return EXIT_SUCCESS;
 }
