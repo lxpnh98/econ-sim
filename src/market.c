@@ -1,7 +1,45 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "market_init.h"
 #include "market.h"
+
+#define MAX_FOOD                    50
+
+#define TRADE_SUCCESS               1
+
+#define TRADE_FAILURE               0
+
+#define MEAN_SHIFT                  0.05
+
+#define INTERVAL_ADJUSTMENT         0.05
+
+#define BETWEEN(X, A, B) ((X < A) ? A : ((X > B) ? B : X))
+
+#define MAX2(A, B) ((A > B) ? A : B)
+
+#define MIN2(A, B) ((A < B) ? A : B)
+
+typedef enum good {
+    WOOD,
+    IRON,
+    FOOD,
+    PAPER
+} Good;
+
+typedef struct bid {
+    Agent *agent;
+    Good good;
+    float price;
+    float quantity;
+} Bid;
+
+typedef struct ask {
+    Agent *agent;
+    Good good;
+    float price;
+    float quantity;
+} Ask;
 
 float price_guess(PriceBelief p)
 {
@@ -16,13 +54,6 @@ float determine_sale_quantity(float mean, PriceBelief p, float excess)
     float diff = p.upper_bound - p.lower_bound;
     float favorability = 0.5 + (mean - avg_belief) / diff;
     favorability = BETWEEN(favorability, 0.0, 1.0);
-    /*
-    printf("mean: %f\n", mean);
-    printf("avg_b: %f\n", avg_belief);
-    printf("diff: %f\n", diff);
-    printf("fav: %f\n", favorability);
-    printf("excess: %f\n", excess);
-    */
     return favorability * excess;
 }
 
@@ -32,13 +63,6 @@ float determine_purchase_quantity(float mean, PriceBelief p, float available)
     float diff = p.upper_bound - p.lower_bound;
     float favorability = 0.5 - (mean - avg_belief) / diff;
     favorability = BETWEEN(favorability, 0.0, 1.0);
-    /*
-    printf("mean: %f\n", mean);
-    printf("avg_b: %f\n", avg_belief);
-    printf("diff: %f\n", diff);
-    printf("fav: %f\n", favorability);
-    printf("available: %f\n", available);
-    */
     return favorability * available;
 }
 
@@ -84,7 +108,6 @@ void create_bid(Market *m, Agent *a, Good g, float price, float quantity)
 
 void create_bids(Market *m, Agent *a)
 {
-    //printf("Purchase quantity: %f\n", determine_purchase_quantity(m->mean, a->p[FOOD], MAX_FOOD));
     switch(a->role) {
         default:
             create_bid(m, a, FOOD, price_guess(a->p[FOOD]), determine_purchase_quantity(m->mean, a->p[FOOD], MAX_FOOD));
@@ -106,7 +129,6 @@ void create_ask(Market *m, Agent *a, Good g, float price, float quantity)
 
 void create_asks(Market *m, Agent *a)
 {
-    //printf("Sale quantity: %f\n", determine_sale_quantity(m->mean, a->p[FOOD], a->good_quantity[FOOD]));
     switch(a->role) {
         default:
             create_ask(m, a, FOOD, price_guess(a->p[FOOD]), determine_sale_quantity(m->mean, a->p[FOOD], a->good_quantity[FOOD]));
@@ -160,7 +182,6 @@ void resolve_offers(Market *m)
     qsort(m->bids, m->num_bids, sizeof(Bid), cmp_offer); 
     qsort(m->asks, m->num_asks, sizeof(Ask), cmp_offer); 
     while (m->num_bids > 0 && m->num_asks > 0) {
-        printf("Bids: %d\nAsks: %d\n", m->num_bids, m->num_asks);
         // Set up trade
         top_bid = m->bids[0];
         top_ask = m->asks[0];
@@ -169,9 +190,7 @@ void resolve_offers(Market *m)
         total_price += price;
         total_quantity += quantity;
 
-        printf("===\n");
-        printf("Top bid quantity: %f\n", top_bid->quantity);
-        printf("Top ask quantity: %f\n", top_ask->quantity);
+        // Exchange
         if (top_bid->quantity < top_ask->quantity) {
             top_ask->quantity -= top_bid->quantity;
             top_bid->quantity = 0.0;
@@ -182,13 +201,6 @@ void resolve_offers(Market *m)
             top_bid->quantity = 0.0;
             top_ask->quantity = 0.0;
         }
-        printf("Top bid quantity: %f\n", top_bid->quantity);
-        printf("Top ask quantity: %f\n", top_ask->quantity);
-        printf("===\n");
-
-        // Exchange
-        //top_bid->quantity -= quantity;
-        //top_ask->quantity -= quantity;
         top_bid->agent->good_quantity[top_bid->good] += quantity;
         top_ask->agent->good_quantity[top_ask->good] -= quantity;
         top_bid->agent->currency -= price * quantity;
