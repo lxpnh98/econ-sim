@@ -35,8 +35,12 @@ void create_agent(Market *m)
 
 void market_init(Market *m)
 {
-    m->num_bids = m->num_asks = 0;
-    m->mean = (MAX_LBOUND + MAX_MEAN / 2.0);
+    int i;
+    for (i = 0; i < NUM_GOODS; i++) {
+        m->num_bids[i] = 0;
+        m->num_asks[i] = 0;
+        m->mean[i] = (MAX_LBOUND + MAX_MEAN / 2.0);
+    }
     m->num_agents = 0;
     while (m->num_agents < MAX_AGENTS) {
         create_agent(m);

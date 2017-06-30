@@ -25,11 +25,14 @@ void print_ask(Ask *a)
 
 void print_market_info(Market *m)
 {
-    //int i;
+    int g;
     printf("Agents: %d\n", m->num_agents);
-    printf("Bids: %d\n", m->num_bids);
-    printf("Asks: %d\n", m->num_asks);
-    printf("Mean: %f\n", m->mean);
+    for (g = 0; g < NUM_GOODS; g++) {
+        printf("Good %d info:\n", g);
+        printf("Bids: %d\n", m->num_bids[g]);
+        printf("Asks: %d\n", m->num_asks[g]);
+        printf("Mean: %f\n", m->mean[g]);
+    }
 
 /*
     for (i = 0; i < m->num_agents; i++) {

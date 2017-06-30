@@ -35,11 +35,11 @@ typedef struct agent {
 typedef struct {
     int num_agents;
     Agent *agents[MAX_AGENTS];
-    int num_bids;
-    Bid *bids[MAX_REQUESTS];
-    int num_asks;
-    Ask *asks[MAX_REQUESTS];
-    float mean;
+    int num_bids[NUM_GOODS];
+    Bid *bids[NUM_GOODS][MAX_REQUESTS];
+    int num_asks[NUM_GOODS];
+    Ask *asks[NUM_GOODS][MAX_REQUESTS];
+    float mean[NUM_GOODS];
 } Market;
 
 void update_market(Market *m);

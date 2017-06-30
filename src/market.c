@@ -29,14 +29,12 @@ typedef enum good {
 
 typedef struct bid {
     Agent *agent;
-    Good good;
     float price;
     float quantity;
 } Bid;
 
 typedef struct ask {
     Agent *agent;
-    Good good;
     float price;
     float quantity;
 } Ask;
@@ -96,13 +94,12 @@ void perform_production(Agent *a)
 
 void create_bid(Market *m, Agent *a, Good g, float price, float quantity)
 {
-    if (m->num_bids < MAX_REQUESTS && quantity > 0) {
-        m->bids[m->num_bids] = (Bid *)malloc(sizeof(Bid));
-        m->bids[m->num_bids]->agent = a;
-        m->bids[m->num_bids]->good = g;
-        m->bids[m->num_bids]->price = price;
-        m->bids[m->num_bids]->quantity = quantity;
-        m->num_bids++;
+    if (m->num_bids[g] < MAX_REQUESTS && quantity > 0) {
+        m->bids[g][m->num_bids[g]] = (Bid *)malloc(sizeof(Bid));
+        m->bids[g][m->num_bids[g]]->agent = a;
+        m->bids[g][m->num_bids[g]]->price = price;
+        m->bids[g][m->num_bids[g]]->quantity = quantity;
+        m->num_bids[g]++;
     }
 }
 
@@ -110,20 +107,19 @@ void create_bids(Market *m, Agent *a)
 {
     switch(a->role) {
         default:
-            create_bid(m, a, FOOD, price_guess(a->p[FOOD]), determine_purchase_quantity(m->mean, a->p[FOOD], MAX_FOOD));
+            create_bid(m, a, FOOD, price_guess(a->p[FOOD]), determine_purchase_quantity(m->mean[FOOD], a->p[FOOD], MAX_FOOD));
             break;
     }
 }
 
 void create_ask(Market *m, Agent *a, Good g, float price, float quantity)
 {
-    if (m->num_asks < MAX_REQUESTS && quantity > 0) {
-        m->asks[m->num_asks] = (Ask *)malloc(sizeof(Ask));
-        m->asks[m->num_asks]->agent = a;
-        m->asks[m->num_asks]->good = g;
-        m->asks[m->num_asks]->price = price;
-        m->asks[m->num_asks]->quantity = quantity;
-        m->num_asks++;
+    if (m->num_asks[g] < MAX_REQUESTS && quantity > 0) {
+        m->asks[g][m->num_asks[g]] = (Ask *)malloc(sizeof(Ask));
+        m->asks[g][m->num_asks[g]]->agent = a;
+        m->asks[g][m->num_asks[g]]->price = price;
+        m->asks[g][m->num_asks[g]]->quantity = quantity;
+        m->num_asks[g]++;
     }
 }
 
@@ -131,7 +127,7 @@ void create_asks(Market *m, Agent *a)
 {
     switch(a->role) {
         default:
-            create_ask(m, a, FOOD, price_guess(a->p[FOOD]), determine_sale_quantity(m->mean, a->p[FOOD], a->good_quantity[FOOD]));
+            create_ask(m, a, FOOD, price_guess(a->p[FOOD]), determine_sale_quantity(m->mean[FOOD], a->p[FOOD], a->good_quantity[FOOD]));
             break;
     }
 }
@@ -141,22 +137,22 @@ int cmp_offer(const void *o1, const void *o2)
     return (((Bid *)o1)->price < ((Bid *)o1)->price) - ((Bid *)o1)->price > ((Bid *)o2)->price;
 }
 
-void remove_top_bid(Market *m)
+void remove_top_bid(Market *m, Good g)
 {
     int i;
-    for (i = 0; i < m->num_bids - 1; i++) {
-        m->bids[i] = m->bids[i + 1];
+    for (i = 0; i < m->num_bids[g] - 1; i++) {
+        m->bids[g][i] = m->bids[g][i + 1];
     }
-    m->num_bids--;
+    m->num_bids[g]--;
 }
 
-void remove_top_ask(Market *m)
+void remove_top_ask(Market *m, Good g)
 {
     int i;
-    for (i = 0; i < m->num_asks - 1; i++) {
-        m->asks[i] = m->asks[i + 1];
+    for (i = 0; i < m->num_asks[g] - 1; i++) {
+        m->asks[g][i] = m->asks[g][i + 1];
     }
-    m->num_asks--;
+    m->num_asks[g]--;
 }
 
 void update_price_model(Agent *a, Good g, float price, int success)
@@ -175,65 +171,68 @@ void update_price_model(Agent *a, Good g, float price, int success)
 
 void resolve_offers(Market *m)
 {
+    int g;
     float quantity;
-    float price, total_price = 0.0, total_quantity = 0.0;
+    float price, total_price[NUM_GOODS] = {0.0}, total_quantity[NUM_GOODS] = {0.0};
     Bid *top_bid;
     Ask *top_ask;
-    qsort(m->bids, m->num_bids, sizeof(Bid), cmp_offer); 
-    qsort(m->asks, m->num_asks, sizeof(Ask), cmp_offer); 
-    while (m->num_bids > 0 && m->num_asks > 0) {
-        // Set up trade
-        top_bid = m->bids[0];
-        top_ask = m->asks[0];
-        quantity = MIN2(top_bid->quantity, top_ask->quantity);
-        price = (top_bid->price + top_ask->price) / 2.0;
-        total_price += price;
-        total_quantity += quantity;
+    for (g = 0; g < NUM_GOODS; g++) {
+        qsort(m->bids[g], m->num_bids[g], sizeof(Bid), cmp_offer); 
+        qsort(m->asks[g], m->num_asks[g], sizeof(Ask), cmp_offer); 
+        while (m->num_bids[g] > 0 && m->num_asks[g] > 0) {
+            // Set up trade
+            top_bid = m->bids[g][0];
+            top_ask = m->asks[g][0];
+            quantity = MIN2(top_bid->quantity, top_ask->quantity);
+            price = (top_bid->price + top_ask->price) / 2.0;
+            total_price[g] += price;
+            total_quantity[g] += quantity;
 
-        // Exchange
-        if (top_bid->quantity < top_ask->quantity) {
-            top_ask->quantity -= top_bid->quantity;
-            top_bid->quantity = 0.0;
-        } else if (top_bid->quantity > top_ask->quantity) {
-            top_bid->quantity -= top_ask->quantity;
-            top_ask->quantity = 0.0;
+            // Exchange
+            if (top_bid->quantity < top_ask->quantity) {
+                top_ask->quantity -= top_bid->quantity;
+                top_bid->quantity = 0.0;
+            } else if (top_bid->quantity > top_ask->quantity) {
+                top_bid->quantity -= top_ask->quantity;
+                top_ask->quantity = 0.0;
+            } else {
+                top_bid->quantity = 0.0;
+                top_ask->quantity = 0.0;
+            }
+            top_bid->agent->good_quantity[g] += quantity;
+            top_ask->agent->good_quantity[g] -= quantity;
+            top_bid->agent->currency -= price * quantity;
+            top_ask->agent->currency += price * quantity;
+
+            // Update price models
+            update_price_model(top_bid->agent, g, price, TRADE_SUCCESS);
+            update_price_model(top_ask->agent, g, price, TRADE_SUCCESS);
+
+            if (top_bid->quantity == 0) {
+                remove_top_bid(m, g);
+            }
+            if (top_ask->quantity == 0) {
+                remove_top_ask(m, g);
+            }
+        }
+
+        // Deal with failed offers
+        if (total_quantity[g] != 0) {
+            m->mean[g] = price = total_price[g] / total_quantity[g];
         } else {
-            top_bid->quantity = 0.0;
-            top_ask->quantity = 0.0;
+            // price not inicialized
+            price = 0.0;
         }
-        top_bid->agent->good_quantity[top_bid->good] += quantity;
-        top_ask->agent->good_quantity[top_ask->good] -= quantity;
-        top_bid->agent->currency -= price * quantity;
-        top_ask->agent->currency += price * quantity;
-
-        // Update price models
-        update_price_model(top_bid->agent, top_bid->good, price, TRADE_SUCCESS);
-        update_price_model(top_ask->agent, top_ask->good, price, TRADE_SUCCESS);
-
-        if (top_bid->quantity == 0) {
-            remove_top_bid(m);
+        while (m->num_bids[g] > 0) {
+            top_bid = m->bids[g][0];
+            update_price_model(top_bid->agent, g, price, TRADE_FAILURE);
+            remove_top_bid(m, g);
         }
-        if (top_ask->quantity == 0) {
-            remove_top_ask(m);
+        while (m->num_asks[g] > 0) {
+            top_ask = m->asks[g][0];
+            update_price_model(top_ask->agent, g, price, TRADE_FAILURE);
+            remove_top_ask(m, g);
         }
-    }
-
-    // Deal with failed offers
-    if (total_quantity != 0) {
-        m->mean = price = total_price / total_quantity;
-    } else {
-        // price not inicialized
-        price = 0.0;
-    }
-    while (m->num_bids > 0) {
-        top_bid = m->bids[0];
-        update_price_model(top_bid->agent, top_bid->good, price, TRADE_FAILURE);
-        remove_top_bid(m);
-    }
-    while (m->num_asks > 0) {
-        top_ask = m->asks[0];
-        update_price_model(top_ask->agent, top_ask->good, price, TRADE_FAILURE);
-        remove_top_ask(m);
     }
 }
 
