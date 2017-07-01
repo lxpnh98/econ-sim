@@ -5,7 +5,7 @@
 #include "market_init.h"
 #include "display.h"
 
-#define ROUNDS                      10
+#define ROUNDS                      5
 
 #define SEED                        1
 

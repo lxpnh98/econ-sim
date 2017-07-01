@@ -3,6 +3,7 @@
 
 #include "market_init.h"
 #include "market.h"
+#include "display.h"
 
 #define MAX_FOOD                    50
 
@@ -10,9 +11,9 @@
 
 #define TRADE_FAILURE               0
 
-#define MEAN_SHIFT                  0.05
+#define MEAN_SHIFT                  0.10
 
-#define INTERVAL_ADJUSTMENT         0.05
+#define INTERVAL_ADJUSTMENT         0.10
 
 #define BETWEEN(X, A, B) ((X < A) ? A : ((X > B) ? B : X))
 
@@ -26,18 +27,6 @@ typedef enum good {
     FOOD,
     PAPER
 } Good;
-
-typedef struct bid {
-    Agent *agent;
-    float price;
-    float quantity;
-} Bid;
-
-typedef struct ask {
-    Agent *agent;
-    float price;
-    float quantity;
-} Ask;
 
 float price_guess(PriceBelief p)
 {
@@ -103,11 +92,16 @@ void create_bid(Market *m, Agent *a, Good g, float price, float quantity)
     }
 }
 
+float get_max_quantity(float currency, float price)
+{
+    return currency / price;
+}
+
 void create_bids(Market *m, Agent *a)
 {
     switch(a->role) {
         default:
-            create_bid(m, a, FOOD, price_guess(a->p[FOOD]), determine_purchase_quantity(m->mean[FOOD], a->p[FOOD], MAX_FOOD));
+            create_bid(m, a, FOOD, price_guess(a->p[FOOD]), determine_purchase_quantity(m->mean[FOOD], a->p[FOOD], get_max_quantity(a->currency, m->mean[FOOD])));
             break;
     }
 }
@@ -132,9 +126,21 @@ void create_asks(Market *m, Agent *a)
     }
 }
 
+/*
 int cmp_offer(const void *o1, const void *o2)
 {
     return (((Bid *)o1)->price < ((Bid *)o1)->price) - ((Bid *)o1)->price > ((Bid *)o2)->price;
+}
+*/
+
+int cmp_bid(const void *o1, const void *o2)
+{
+    return -((((Bid *)o1)->price < ((Bid *)o1)->price) - ((Bid *)o1)->price > ((Bid *)o2)->price);
+}
+
+int cmp_ask(const void *o1, const void *o2)
+{
+    return ((((Ask *)o1)->price < ((Ask *)o1)->price) - ((Ask *)o1)->price > ((Ask *)o2)->price);
 }
 
 void remove_top_bid(Market *m, Good g)
@@ -158,12 +164,12 @@ void remove_top_ask(Market *m, Good g)
 void update_price_model(Agent *a, Good g, float price, int success)
 {
     float m = (a->p[g].lower_bound + a->p[g].upper_bound) / 2.0;
-    a->p[g].lower_bound += (price - m) * MEAN_SHIFT;
-    a->p[g].upper_bound += (price - m) * MEAN_SHIFT;
     if (success) {
         a->p[g].lower_bound += (m - a->p[g].lower_bound) * INTERVAL_ADJUSTMENT;
         a->p[g].upper_bound += (m - a->p[g].upper_bound) * INTERVAL_ADJUSTMENT;
     } else {
+        a->p[g].lower_bound += (price - m) * MEAN_SHIFT;
+        a->p[g].upper_bound += (price - m) * MEAN_SHIFT;
         a->p[g].lower_bound -= (m - a->p[g].lower_bound) * INTERVAL_ADJUSTMENT;
         a->p[g].upper_bound -= (m - a->p[g].upper_bound) * INTERVAL_ADJUSTMENT;
     }
@@ -177,14 +183,14 @@ void resolve_offers(Market *m)
     Bid *top_bid;
     Ask *top_ask;
     for (g = 0; g < NUM_GOODS; g++) {
-        qsort(m->bids[g], m->num_bids[g], sizeof(Bid), cmp_offer); 
-        qsort(m->asks[g], m->num_asks[g], sizeof(Ask), cmp_offer); 
+        qsort(m->bids[g], m->num_bids[g], sizeof(Bid), cmp_bid); 
+        qsort(m->asks[g], m->num_asks[g], sizeof(Ask), cmp_ask); 
         while (m->num_bids[g] > 0 && m->num_asks[g] > 0) {
             // Set up trade
             top_bid = m->bids[g][0];
             top_ask = m->asks[g][0];
-            quantity = MIN2(top_bid->quantity, top_ask->quantity);
             price = (top_bid->price + top_ask->price) / 2.0;
+            quantity = MIN2(MIN2(top_bid->quantity, top_ask->quantity), top_bid->agent->currency / price);
             total_price[g] += price;
             total_quantity[g] += quantity;
 
@@ -221,7 +227,7 @@ void resolve_offers(Market *m)
             m->mean[g] = price = total_price[g] / total_quantity[g];
         } else {
             // price not inicialized
-            price = 0.0;
+            m->mean[g] = price = 10.0;
         }
         while (m->num_bids[g] > 0) {
             top_bid = m->bids[g][0];
@@ -245,6 +251,7 @@ void update_market(Market *m)
         create_bids(m, m->agents[i]);
         create_asks(m, m->agents[i]);
     }
+    print_market_info(m);
     resolve_offers(m);
     printf("Updated market.\n");
 }

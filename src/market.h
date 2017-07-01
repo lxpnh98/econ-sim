@@ -9,9 +9,19 @@
 
 #define MAX_REQUESTS                500
 
-typedef struct bid Bid;
+typedef struct agent Agent;
 
-typedef struct ask Ask;
+typedef struct bid {
+    Agent *agent;
+    float price;
+    float quantity;
+} Bid;
+
+typedef struct ask {
+    Agent *agent;
+    float price;
+    float quantity;
+} Ask;
 
 typedef enum role {
     WOODWORKER,
