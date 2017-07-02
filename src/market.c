@@ -191,7 +191,7 @@ void resolve_offers(Market *m)
             top_ask = m->asks[g][0];
             price = (top_bid->price + top_ask->price) / 2.0;
             quantity = MIN2(MIN2(top_bid->quantity, top_ask->quantity), top_bid->agent->currency / price);
-            total_price[g] += price;
+            total_price[g] += price * quantity;
             total_quantity[g] += quantity;
 
             // Exchange
