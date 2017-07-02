@@ -18,8 +18,10 @@ int main()
     print_market_info(&m);
     for (n = 0; n < ROUNDS; n++) {
         update_market(&m);
-        print_market_info(&m);
-        printf("Round complete.\n");
+        //print_market_info(&m);
+        printf("\n---------------\n");
+        printf("Round complete.");
+        printf("\n---------------\n\n");
     }
     return EXIT_SUCCESS;
 }

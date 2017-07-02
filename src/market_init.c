@@ -3,8 +3,6 @@
 #include "market_init.h"
 #include "market.h"
 
-#define INIT_CURRENCY               5.0
-
 #define MAX_LBOUND                  5.0
 
 #define MAX_MEAN                    10.0

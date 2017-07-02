@@ -50,5 +50,4 @@ void print_market_info(Market *m)
             print_ask(m->asks[g][i]);
         }
     }
-    printf("\n----------\n");
 }

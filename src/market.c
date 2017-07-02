@@ -126,13 +126,6 @@ void create_asks(Market *m, Agent *a)
     }
 }
 
-/*
-int cmp_offer(const void *o1, const void *o2)
-{
-    return (((Bid *)o1)->price < ((Bid *)o1)->price) - ((Bid *)o1)->price > ((Bid *)o2)->price;
-}
-*/
-
 int cmp_bid(const void *o1, const void *o2)
 {
     return -((((Bid *)o1)->price < ((Bid *)o1)->price) - ((Bid *)o1)->price > ((Bid *)o2)->price);
@@ -146,6 +139,7 @@ int cmp_ask(const void *o1, const void *o2)
 void remove_top_bid(Market *m, Good g)
 {
     int i;
+    free(m->bids[g][0]);
     for (i = 0; i < m->num_bids[g] - 1; i++) {
         m->bids[g][i] = m->bids[g][i + 1];
     }
@@ -155,6 +149,7 @@ void remove_top_bid(Market *m, Good g)
 void remove_top_ask(Market *m, Good g)
 {
     int i;
+    free(m->asks[g][0]);
     for (i = 0; i < m->num_asks[g] - 1; i++) {
         m->asks[g][i] = m->asks[g][i + 1];
     }
@@ -242,6 +237,23 @@ void resolve_offers(Market *m)
     }
 }
 
+void replace_agents(Market *m)
+{
+    int i, g;
+    Agent *a;
+    for (i = 0; i < MAX_AGENTS; i++) {
+        a = m->agents[i];
+        if (a->currency == 0.0) {
+            a->role = rand() % NUM_ROLES;
+            for (g = 0; g < NUM_GOODS; g++) {
+                a->p[g] = rand_price_belief();
+                a->good_quantity[g] = 5.0;
+            }
+            a->currency = INIT_CURRENCY;
+        }
+    }
+}
+
 void update_market(Market *m)
 {
     int i;
@@ -253,5 +265,5 @@ void update_market(Market *m)
     }
     print_market_info(m);
     resolve_offers(m);
-    printf("Updated market.\n");
+    replace_agents(m);
 }
