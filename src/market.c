@@ -15,11 +15,13 @@
 
 #define INTERVAL_ADJUSTMENT         0.10
 
-#define BETWEEN(X, A, B) ((X < A) ? A : ((X > B) ? B : X))
+#define MEAN_ROLLING_AVG            10
 
-#define MAX2(A, B) ((A > B) ? A : B)
+#define BETWEEN(X, A, B)            ((X < A) ? A : ((X > B) ? B : X))
 
-#define MIN2(A, B) ((A < B) ? A : B)
+#define MAX2(A, B)                  ((A > B) ? A : B)
+
+#define MIN2(A, B)                  ((A < B) ? A : B)
 
 typedef enum good {
     WOOD,
@@ -174,20 +176,22 @@ void resolve_offers(Market *m)
 {
     int g;
     float quantity;
-    float price, total_price[NUM_GOODS] = {0.0}, total_quantity[NUM_GOODS] = {0.0};
+    float price, total_price, total_quantity;
     Bid *top_bid;
     Ask *top_ask;
     for (g = 0; g < NUM_GOODS; g++) {
         qsort(m->bids[g], m->num_bids[g], sizeof(Bid), cmp_bid); 
         qsort(m->asks[g], m->num_asks[g], sizeof(Ask), cmp_ask); 
+        total_price = 0.0;
+        total_quantity = 0.0;
         while (m->num_bids[g] > 0 && m->num_asks[g] > 0) {
             // Set up trade
             top_bid = m->bids[g][0];
             top_ask = m->asks[g][0];
             price = (top_bid->price + top_ask->price) / 2.0;
             quantity = MIN2(MIN2(top_bid->quantity, top_ask->quantity), top_bid->agent->currency / price);
-            total_price[g] += price * quantity;
-            total_quantity[g] += quantity;
+            total_price += price * quantity;
+            total_quantity += quantity;
 
             // Exchange
             if (top_bid->quantity < top_ask->quantity) {
@@ -218,20 +222,18 @@ void resolve_offers(Market *m)
         }
 
         // Deal with failed offers
-        if (total_quantity[g] != 0) {
-            m->mean[g] = price = total_price[g] / total_quantity[g];
-        } else {
-            // price not inicialized
-            m->mean[g] = price = 10.0;
+        if (total_quantity != 0) {
+            m->mean[g] = (m->mean[g] * (MEAN_ROLLING_AVG - 1) +  total_price / total_quantity) / MEAN_ROLLING_AVG;
         }
+
         while (m->num_bids[g] > 0) {
             top_bid = m->bids[g][0];
-            update_price_model(top_bid->agent, g, price, TRADE_FAILURE);
+            update_price_model(top_bid->agent, g, m->mean[g], TRADE_FAILURE);
             remove_top_bid(m, g);
         }
         while (m->num_asks[g] > 0) {
             top_ask = m->asks[g][0];
-            update_price_model(top_ask->agent, g, price, TRADE_FAILURE);
+            update_price_model(top_ask->agent, g, m->mean[g], TRADE_FAILURE);
             remove_top_ask(m, g);
         }
     }
