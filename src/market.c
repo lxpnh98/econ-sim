@@ -176,7 +176,8 @@ void resolve_offers(Market *m)
 {
     int g;
     float quantity;
-    float price, total_price, total_quantity;
+    float price;
+    double total_price, total_quantity;
     Bid *top_bid;
     Ask *top_ask;
     for (g = 0; g < NUM_GOODS; g++) {
@@ -223,7 +224,7 @@ void resolve_offers(Market *m)
 
         // Deal with failed offers
         if (total_quantity != 0) {
-            m->mean[g] = (m->mean[g] * (MEAN_ROLLING_AVG - 1) +  total_price / total_quantity) / MEAN_ROLLING_AVG;
+            m->mean[g] = (m->mean[g] * (MEAN_ROLLING_AVG - 1) + total_price / total_quantity) / MEAN_ROLLING_AVG;
         }
 
         while (m->num_bids[g] > 0) {
@@ -245,7 +246,7 @@ void replace_agents(Market *m)
     Agent *a;
     for (i = 0; i < MAX_AGENTS; i++) {
         a = m->agents[i];
-        if (a->currency == 0.0) {
+        if (a->currency == 0.0 || a->good_quantity[FOOD] == 0.0) {
             a->role = rand() % NUM_ROLES;
             for (g = 0; g < NUM_GOODS; g++) {
                 a->p[g] = rand_price_belief();
@@ -265,7 +266,7 @@ void update_market(Market *m)
         create_bids(m, m->agents[i]);
         create_asks(m, m->agents[i]);
     }
-    print_market_info(m);
+    print_market_info(m, 1);
     resolve_offers(m);
     replace_agents(m);
 }

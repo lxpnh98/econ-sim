@@ -26,28 +26,26 @@ void print_ask(Ask *a)
     printf("Quantity: %f\n", a->quantity);
 }
 
-void print_market_info(Market *m)
+void print_market_info(Market *m, int bare)
 {
     int i, g;
     printf("Agents: %d\n", m->num_agents);
+    if (!bare)
+        for (i = 0; i < m->num_agents; i++) {
+            print_agent(m->agents[i]);
+        }
     for (g = 0; g < NUM_GOODS; g++) {
-        printf("Good %d info:\n", g);
-        printf("Bids: %d\n", m->num_bids[g]);
-        printf("Asks: %d\n", m->num_asks[g]);
         printf("Mean: %f\n", m->mean[g]);
-    }
-    for (i = 0; i < m->num_agents; i++) {
-        print_agent(m->agents[i]);
-    }
-    for (g = 0; g < NUM_GOODS; g++) {
         printf("Good %d:\n", g);
-        printf("Bids:\n");
-        for (i = 0; i < m->num_bids[g]; i++) {
-            print_bid(m->bids[g][i]);
-        }
-        printf("Asks:\n");
-        for (i = 0; i < m->num_asks[g]; i++) {
-            print_ask(m->asks[g][i]);
-        }
+        printf("Bids: %d\n", m->num_bids[g]);
+        if (!bare)
+            for (i = 0; i < m->num_bids[g]; i++) {
+                print_bid(m->bids[g][i]);
+            }
+        printf("Asks: %d\n", m->num_asks[g]);
+        if (!bare)
+            for (i = 0; i < m->num_asks[g]; i++) {
+                print_ask(m->asks[g][i]);
+            }
     }
 }

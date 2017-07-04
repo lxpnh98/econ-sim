@@ -15,7 +15,7 @@ int main()
     Market m;
     srand(SEED);
     market_init(&m);
-    print_market_info(&m);
+    print_market_info(&m, 1);
     for (n = 0; n < ROUNDS; n++) {
         update_market(&m);
         //print_market_info(&m);

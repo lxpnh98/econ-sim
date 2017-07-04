@@ -49,7 +49,7 @@ typedef struct {
     Bid *bids[NUM_GOODS][MAX_REQUESTS];
     int num_asks[NUM_GOODS];
     Ask *asks[NUM_GOODS][MAX_REQUESTS];
-    float mean[NUM_GOODS];
+    double mean[NUM_GOODS];
 } Market;
 
 void update_market(Market *m);

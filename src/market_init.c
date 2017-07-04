@@ -5,7 +5,7 @@
 
 #define MAX_LBOUND                  5.0
 
-#define MAX_MEAN                    10.0
+#define MAX_MEAN                    15.0
 
 PriceBelief rand_price_belief()
 {
