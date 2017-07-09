@@ -36,6 +36,8 @@ int main()
                 }
                 if (function_table[j].token == NULL) {
                     printf("%s: invalid command\n", args[i]);
+                    printf("type \"help\" to get the list of available commands\n");
+                    break;
                 }
             }
         }
