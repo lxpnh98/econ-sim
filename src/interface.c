@@ -47,6 +47,9 @@ int run_sim(State *s, char **args)
     (void)args;
     int n;
     srand(s->seed);
+    if (s->first_round != NULL) {
+        free_markets(s);
+    }
     market_init(s);
     print_market_info(s->first_round, 1);
     for (n = 0; n < s->rounds; n++) {
@@ -59,10 +62,37 @@ int run_sim(State *s, char **args)
     return 0;
 }
 
+int step_sim(State *s, char **args)
+{
+    int i;
+    int argc = 1;
+    int rounds;
+    if (args[1] == NULL) {
+        rounds = 1;
+        argc = 0;
+    } else if (sscanf(args[1], "%d", &rounds) != 1) {
+        printf("step: invalid argument\n");
+        return argc;
+    }
+
+    if (s->first_round == NULL) {
+        market_init(s);
+    }
+    for (i = 0; i < rounds; i++) {
+        update_market(s);
+        printf("\n---------------\n");
+        printf("Round complete.");
+        printf("\n---------------\n\n");
+    }
+    return argc;
+}
+
 int exit_sim(State *s, char **args)
 {
-    (void)s;
     (void)args;
+    if (s->first_round != NULL) {
+        free_markets(s);
+    }
     exit(0);
     return 0;
 }
@@ -101,6 +131,7 @@ int print_help(State *s, char **args)
     (void)args;
     printf("Available commands:\n");
     printf("run - run simulation\n");
+    printf("step - simulate n rounds (no argument simulates a single round)\n");
     printf("set_seed - set the seed at the start of the simulation\n");
     printf("set_rounds - set the number of rounds of the simulation\n");
     printf("exit - exit program\n");
@@ -112,6 +143,7 @@ struct {
     int (*f)(State *, char **);
 } function_table[] = {
     {"run", run_sim},
+    {"step", step_sim},
     {"set_seed", set_seed},
     {"set_rounds", set_rounds},
     {"exit", exit_sim},
