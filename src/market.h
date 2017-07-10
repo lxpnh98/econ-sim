@@ -1,6 +1,8 @@
 #ifndef MARKET
 #define MARKET
 
+#include "interface.h"
+
 #define MAX_AGENTS                  10
 
 #define NUM_GOODS                   4
@@ -42,7 +44,7 @@ typedef struct agent {
     float currency;
 } Agent;
 
-typedef struct {
+typedef struct market {
     int num_agents;
     Agent *agents[MAX_AGENTS];
     int num_bids[NUM_GOODS];
@@ -50,8 +52,9 @@ typedef struct {
     int num_asks[NUM_GOODS];
     Ask *asks[NUM_GOODS][MAX_REQUESTS];
     double mean[NUM_GOODS];
+    struct market *next_round;
 } Market;
 
-void update_market(Market *m);
+void update_market(State *s);
 
 #endif

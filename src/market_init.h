@@ -4,5 +4,5 @@
 
 PriceBelief rand_price_belief();
 
-void market_init(Market *m);
+void market_init(State *s);
 

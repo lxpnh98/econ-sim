@@ -31,9 +31,10 @@ void create_agent(Market *m)
     m->num_agents++;
 }
 
-void market_init(Market *m)
+void market_init(State *s)
 {
     int i;
+    Market *m = (Market *)malloc(sizeof(Market));
     for (i = 0; i < NUM_GOODS; i++) {
         m->num_bids[i] = 0;
         m->num_asks[i] = 0;
@@ -43,5 +44,8 @@ void market_init(Market *m)
     while (m->num_agents < MAX_AGENTS) {
         create_agent(m);
     }
+    m->next_round = NULL;
+    s->first_round = m;
+    s->current_round = s->first_round;
 }
 

@@ -6,30 +6,60 @@
 #include "market_init.h"
 #include "display.h"
 
-void state_init(State s)
+void state_init(State *s)
 {
     s->seed = DEFAULT_SEED;
     s->rounds = DEFAULT_ROUNDS;
+    s->first_round = s->current_round = NULL;
 }
 
-int run_sim(State s, char **args)
+Market *free_market(Market *m)
+{
+    int i, g;
+    Market *next;
+    for (i = 0; i < m->num_agents; i++) {
+        free(m->agents[i]);
+    }
+    for (g = 0; g < NUM_GOODS; g++) {
+        for (i = 0; i < m->num_bids[g]; i++) {
+            free(m->bids[g][i]);
+        }
+        for (i = 0; i < m->num_asks[g]; i++) {
+            free(m->asks[g][i]);
+        }
+    }
+    next = m->next_round;
+    free(m);
+    return next;
+}
+
+void free_markets(State *s)
+{
+    Market *aux;
+    for (aux = s->first_round; aux != NULL;) {
+        aux = free_market(aux);
+    }
+    s->first_round = s->current_round = NULL;
+}
+
+int run_sim(State *s, char **args)
 {
     (void)args;
     int n;
-    Market m;
     srand(s->seed);
-    market_init(&m);
-    print_market_info(&m, 1);
+    market_init(s);
+    print_market_info(s->first_round, 1);
     for (n = 0; n < s->rounds; n++) {
-        update_market(&m);
+        update_market(s);
         printf("\n---------------\n");
         printf("Round complete.");
         printf("\n---------------\n\n");
     }
+    free_markets(s);
     return 0;
 }
 
-int exit_sim(State s, char **args)
+int exit_sim(State *s, char **args)
 {
     (void)s;
     (void)args;
@@ -37,7 +67,7 @@ int exit_sim(State s, char **args)
     return 0;
 }
 
-int set_seed(State s, char **args)
+int set_seed(State *s, char **args)
 {
     int seed;
     if (args[1] == NULL) {
@@ -51,7 +81,7 @@ int set_seed(State s, char **args)
     return 1;
 }
 
-int set_rounds(State s, char **args)
+int set_rounds(State *s, char **args)
 {
     int rounds;
     if (args[1] == NULL) {
@@ -65,7 +95,7 @@ int set_rounds(State s, char **args)
     return 1;
 }
 
-int print_help(State s, char **args)
+int print_help(State *s, char **args)
 {
     (void)s;
     (void)args;
@@ -79,7 +109,7 @@ int print_help(State s, char **args)
 
 struct {
     char *token;
-    int (*f)(State, char **);
+    int (*f)(State *, char **);
 } function_table[] = {
     {"run", run_sim},
     {"set_seed", set_seed},

@@ -8,7 +8,7 @@
 
 extern struct {
     char *token;
-    int (*f)(State, char **);
+    int (*f)(State *, char **);
 } function_table[];
 
 int main()
@@ -16,7 +16,7 @@ int main()
     int tokens, i, j;
     char command[MAX_BUFFER];
     char *args[MAX_BUFFER];
-    struct state s;
+    State s;
     state_init(&s);
     while (1) {
         printf("> ");

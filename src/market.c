@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "market_init.h"
 #include "market.h"
+#include "market_init.h"
 #include "display.h"
+#include "interface.h"
 
 #define MAX_FOOD                    50
 
@@ -174,6 +175,7 @@ void update_price_model(Agent *a, Good g, float price, int success)
 
 void resolve_offers(Market *m)
 {
+    int i, j;
     int g;
     float quantity;
     float price;
@@ -185,10 +187,11 @@ void resolve_offers(Market *m)
         qsort(m->asks[g], m->num_asks[g], sizeof(Ask), cmp_ask); 
         total_price = 0.0;
         total_quantity = 0.0;
-        while (m->num_bids[g] > 0 && m->num_asks[g] > 0) {
+        for (i = j = 0; i < m->num_bids[g] && j < m->num_bids[g];) {
+        //while (m->num_bids[g] > 0 && m->num_asks[g] > 0) {
             // Set up trade
-            top_bid = m->bids[g][0];
-            top_ask = m->asks[g][0];
+            top_bid = m->bids[g][i];
+            top_ask = m->asks[g][j];
             price = (top_bid->price + top_ask->price) / 2.0;
             quantity = MIN2(MIN2(top_bid->quantity, top_ask->quantity), top_bid->agent->currency / price);
             total_price += price * quantity;
@@ -215,10 +218,12 @@ void resolve_offers(Market *m)
             update_price_model(top_ask->agent, g, price, TRADE_SUCCESS);
 
             if (top_bid->quantity == 0) {
-                remove_top_bid(m, g);
+                i++;
+                //remove_top_bid(m, g);
             }
             if (top_ask->quantity == 0) {
-                remove_top_ask(m, g);
+                j++;
+                //remove_top_ask(m, g);
             }
         }
 
@@ -226,16 +231,17 @@ void resolve_offers(Market *m)
         if (total_quantity != 0) {
             m->mean[g] = (m->mean[g] * (MEAN_ROLLING_AVG - 1) + total_price / total_quantity) / MEAN_ROLLING_AVG;
         }
-
-        while (m->num_bids[g] > 0) {
-            top_bid = m->bids[g][0];
+        while (i < m->num_bids[g]) {
+            top_bid = m->bids[g][i];
             update_price_model(top_bid->agent, g, m->mean[g], TRADE_FAILURE);
-            remove_top_bid(m, g);
+            //remove_top_bid(m, g);
+            i++;
         }
-        while (m->num_asks[g] > 0) {
-            top_ask = m->asks[g][0];
+        while (j < m->num_asks[g]) {
+            top_ask = m->asks[g][j];
             update_price_model(top_ask->agent, g, m->mean[g], TRADE_FAILURE);
-            remove_top_ask(m, g);
+            //remove_top_ask(m, g);
+            j++;
         }
     }
 }
@@ -257,9 +263,34 @@ void replace_agents(Market *m)
     }
 }
 
-void update_market(Market *m)
+void make_next_round(Market *m)
+{
+    int i, j;
+    Agent *a;
+    m->next_round = (Market *)malloc(sizeof(Market));
+    for (i = 0; i < NUM_GOODS; i++) {
+        m->next_round->num_bids[i] = 0;
+        m->next_round->num_asks[i] = 0;
+        m->next_round->mean[i] = m->mean[i];
+    }
+    m->next_round->num_agents = MAX_AGENTS;
+    for (i = 0; i < MAX_AGENTS; i++) {
+        a = (Agent *)malloc(sizeof(Agent));
+        a->role = m->agents[i]->role;
+        for (j = 0; j < NUM_GOODS; j++) {
+            a->p[j] = m->agents[i]->p[j];
+            a->good_quantity[j] = m->agents[i]->good_quantity[j];
+        }
+        a->currency = m->agents[i]->currency;
+        m->next_round->agents[i] = a;
+    }
+    m->next_round->next_round = NULL;
+}
+
+void update_market(State *s)
 {
     int i;
+    Market *m = s->current_round;
     for (i = 0; i < MAX_AGENTS; i++) {
         perform_consumption(m->agents[i]);
         perform_production(m->agents[i]);
@@ -269,4 +300,7 @@ void update_market(Market *m)
     print_market_info(m, 1);
     resolve_offers(m);
     replace_agents(m);
+    make_next_round(m);
+    s->current_round = s->current_round->next_round;
 }
+
