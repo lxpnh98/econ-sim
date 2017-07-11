@@ -87,6 +87,15 @@ int step_sim(State *s, char **args)
     return argc;
 }
 
+int end_sim(State *s, char **args)
+{
+    (void)args;
+    if (s->first_round != NULL) {
+        free_markets(s);
+    }
+    return 0;
+}
+
 int exit_sim(State *s, char **args)
 {
     (void)args;
@@ -132,6 +141,7 @@ int print_help(State *s, char **args)
     printf("Available commands:\n");
     printf("run - run simulation\n");
     printf("step - simulate n rounds (no argument simulates a single round)\n");
+    printf("end - end the current simulation\n");
     printf("set_seed - set the seed at the start of the simulation\n");
     printf("set_rounds - set the number of rounds of the simulation\n");
     printf("exit - exit program\n");
@@ -144,6 +154,7 @@ struct {
 } function_table[] = {
     {"run", run_sim},
     {"step", step_sim},
+    {"end", end_sim},
     {"set_seed", set_seed},
     {"set_rounds", set_rounds},
     {"exit", exit_sim},
