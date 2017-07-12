@@ -87,10 +87,14 @@ void perform_production(Agent *a)
 void create_bid(Market *m, Agent *a, Good g, float price, float quantity)
 {
     if (m->num_bids[g] < MAX_REQUESTS && quantity > 0) {
-        m->bids[g][m->num_bids[g]] = (Bid *)malloc(sizeof(Bid));
+        if ((m->bids[g][m->num_bids[g]] = (Bid *)malloc(sizeof(Bid))) == NULL) {
+            perror("unable to create bid");
+            exit(1);
+        }
         m->bids[g][m->num_bids[g]]->agent = a;
         m->bids[g][m->num_bids[g]]->price = price;
         m->bids[g][m->num_bids[g]]->quantity = quantity;
+        m->bids[g][m->num_bids[g]]->status = UNDETERMINED;
         m->num_bids[g]++;
     }
 }
@@ -112,10 +116,14 @@ void create_bids(Market *m, Agent *a)
 void create_ask(Market *m, Agent *a, Good g, float price, float quantity)
 {
     if (m->num_asks[g] < MAX_REQUESTS && quantity > 0) {
-        m->asks[g][m->num_asks[g]] = (Ask *)malloc(sizeof(Ask));
+        if ((m->asks[g][m->num_asks[g]] = (Ask *)malloc(sizeof(Ask))) == NULL) {
+            perror("unable to create ask");
+            exit(1);
+        }
         m->asks[g][m->num_asks[g]]->agent = a;
         m->asks[g][m->num_asks[g]]->price = price;
         m->asks[g][m->num_asks[g]]->quantity = quantity;
+        m->asks[g][m->num_asks[g]]->status = UNDETERMINED;
         m->num_asks[g]++;
     }
 }
@@ -131,32 +139,28 @@ void create_asks(Market *m, Agent *a)
 
 int cmp_bid(const void *o1, const void *o2)
 {
-    return -((((Bid *)o1)->price < ((Bid *)o1)->price) - ((Bid *)o1)->price > ((Bid *)o2)->price);
+    float p1 = (*(Bid **)o1)->price;
+    float p2 = (*(Bid **)o2)->price;
+    float r = (p2 - p1);
+    if (r < 0.0)
+        return -1;
+    else if (r == 0.0)
+        return 0;
+    else
+        return 1;
 }
 
 int cmp_ask(const void *o1, const void *o2)
 {
-    return ((((Ask *)o1)->price < ((Ask *)o1)->price) - ((Ask *)o1)->price > ((Ask *)o2)->price);
-}
-
-void remove_top_bid(Market *m, Good g)
-{
-    int i;
-    free(m->bids[g][0]);
-    for (i = 0; i < m->num_bids[g] - 1; i++) {
-        m->bids[g][i] = m->bids[g][i + 1];
-    }
-    m->num_bids[g]--;
-}
-
-void remove_top_ask(Market *m, Good g)
-{
-    int i;
-    free(m->asks[g][0]);
-    for (i = 0; i < m->num_asks[g] - 1; i++) {
-        m->asks[g][i] = m->asks[g][i + 1];
-    }
-    m->num_asks[g]--;
+    float p1 = (*(Ask **)o1)->price;
+    float p2 = (*(Ask **)o2)->price;
+    float r = (p1 - p2);
+    if (r < 0.0)
+        return -1;
+    else if (r == 0.0)
+        return 0;
+    else
+        return 1;
 }
 
 void update_price_model(Agent *a, Good g, float price, int success)
@@ -183,15 +187,16 @@ void resolve_offers(Market *m)
     Bid *top_bid;
     Ask *top_ask;
     for (g = 0; g < NUM_GOODS; g++) {
-        qsort(m->bids[g], m->num_bids[g], sizeof(Bid), cmp_bid); 
-        qsort(m->asks[g], m->num_asks[g], sizeof(Ask), cmp_ask); 
+        qsort(m->bids[g], m->num_bids[g], sizeof(Bid *), cmp_bid);
+        qsort(m->asks[g], m->num_asks[g], sizeof(Ask *), cmp_ask);
         total_price = 0.0;
         total_quantity = 0.0;
-        for (i = j = 0; i < m->num_bids[g] && j < m->num_bids[g];) {
-        //while (m->num_bids[g] > 0 && m->num_asks[g] > 0) {
+        for (i = j = 0; i < m->num_bids[g] && j < m->num_asks[g];) {
             // Set up trade
             top_bid = m->bids[g][i];
+            top_bid->status = UNSUCCESSFUL;
             top_ask = m->asks[g][j];
+            top_ask->status = UNSUCCESSFUL;
             price = (top_bid->price + top_ask->price) / 2.0;
             quantity = MIN2(MIN2(top_bid->quantity, top_ask->quantity), top_bid->agent->currency / price);
             total_price += price * quantity;
@@ -217,13 +222,11 @@ void resolve_offers(Market *m)
             update_price_model(top_bid->agent, g, price, TRADE_SUCCESS);
             update_price_model(top_ask->agent, g, price, TRADE_SUCCESS);
 
-            if (top_bid->quantity == 0) {
+            if (top_bid->quantity == 0.0) {
                 i++;
-                //remove_top_bid(m, g);
             }
-            if (top_ask->quantity == 0) {
+            if (top_ask->quantity == 0.0) {
                 j++;
-                //remove_top_ask(m, g);
             }
         }
 
@@ -233,14 +236,18 @@ void resolve_offers(Market *m)
         }
         while (i < m->num_bids[g]) {
             top_bid = m->bids[g][i];
+            if (top_bid->status != SUCCESSFUL) {
+                top_bid->status = UNSUCCESSFUL;
+            }
             update_price_model(top_bid->agent, g, m->mean[g], TRADE_FAILURE);
-            //remove_top_bid(m, g);
             i++;
         }
         while (j < m->num_asks[g]) {
             top_ask = m->asks[g][j];
+            if (top_ask->status != SUCCESSFUL) {
+                top_ask->status = UNSUCCESSFUL;
+            }
             update_price_model(top_ask->agent, g, m->mean[g], TRADE_FAILURE);
-            //remove_top_ask(m, g);
             j++;
         }
     }

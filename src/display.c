@@ -18,12 +18,14 @@ void print_bid(Bid *b)
 {
     printf("Price: %f\n", b->price);
     printf("Quantity: %f\n", b->quantity);
+    printf("Status: %d\n", b->status);
 }
 
 void print_ask(Ask *a)
 {
     printf("Price: %f\n", a->price);
     printf("Quantity: %f\n", a->quantity);
+    printf("Status: %d\n", a->status);
 }
 
 void print_market_info(Market *m, int bare)

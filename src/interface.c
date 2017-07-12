@@ -134,6 +134,19 @@ int set_rounds(State *s, char **args)
     return 1;
 }
 
+int display_sim(State *s, char **args)
+{
+    (void)args;
+    Market *r;
+    if (s->current_round != NULL) {
+        for (r = s->first_round; r->next_round != NULL && r->next_round != s->current_round; r = r->next_round);
+        print_market_info(r, 0);
+    } else {
+        printf("display: market uninitialzed\n");
+    }
+    return 0;
+}
+
 int print_help(State *s, char **args)
 {
     (void)s;
@@ -144,6 +157,7 @@ int print_help(State *s, char **args)
     printf("end - end the current simulation\n");
     printf("set_seed - set the seed at the start of the simulation\n");
     printf("set_rounds - set the number of rounds of the simulation\n");
+    printf("display - display simulation info for current round\n");
     printf("exit - exit program\n");
     return 0;
 }
@@ -159,6 +173,7 @@ struct {
     {"set_rounds", set_rounds},
     {"exit", exit_sim},
     {"help", print_help},
+    {"display", display_sim},
     {NULL, NULL}
 };
 

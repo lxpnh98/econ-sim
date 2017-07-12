@@ -11,18 +11,22 @@
 
 #define MAX_REQUESTS                500
 
+typedef enum {UNDETERMINED, SUCCESSFUL, UNSUCCESSFUL} OfferStatus;
+
 typedef struct agent Agent;
 
 typedef struct bid {
     Agent *agent;
     float price;
     float quantity;
+    OfferStatus status;
 } Bid;
 
 typedef struct ask {
     Agent *agent;
     float price;
     float quantity;
+    OfferStatus status;
 } Ask;
 
 typedef enum role {
