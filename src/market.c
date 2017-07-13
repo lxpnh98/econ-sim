@@ -297,7 +297,10 @@ void make_next_round(Market *m)
 void update_market(State *s)
 {
     int i;
-    Market *m = s->current_round;
+    Market *m;
+    make_next_round(s->current_round);
+    s->current_round = s->current_round->next_round;
+    m = s->current_round;
     for (i = 0; i < MAX_AGENTS; i++) {
         perform_consumption(m->agents[i]);
         perform_production(m->agents[i]);
@@ -307,7 +310,5 @@ void update_market(State *s)
     print_market_info(m, 1);
     resolve_offers(m);
     replace_agents(m);
-    make_next_round(m);
-    s->current_round = s->current_round->next_round;
 }
 

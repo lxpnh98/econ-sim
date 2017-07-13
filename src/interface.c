@@ -137,10 +137,8 @@ int set_rounds(State *s, char **args)
 int display_sim(State *s, char **args)
 {
     (void)args;
-    Market *r;
     if (s->current_round != NULL) {
-        for (r = s->first_round; r->next_round != NULL && r->next_round != s->current_round; r = r->next_round);
-        print_market_info(r, 0);
+        print_market_info(s->current_round, 0);
     } else {
         printf("display: market uninitialzed\n");
     }
