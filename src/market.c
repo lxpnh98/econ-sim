@@ -24,13 +24,6 @@
 
 #define MIN2(A, B)                  ((A < B) ? A : B)
 
-typedef enum good {
-    WOOD,
-    IRON,
-    FOOD,
-    PAPER
-} Good;
-
 float price_guess(PriceBelief p)
 {
     float random = (float)rand() / (float)RAND_MAX;

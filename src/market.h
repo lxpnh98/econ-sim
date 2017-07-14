@@ -15,6 +15,13 @@ typedef enum {UNDETERMINED, SUCCESSFUL, UNSUCCESSFUL} OfferStatus;
 
 typedef struct agent Agent;
 
+typedef enum good {
+    WOOD,
+    IRON,
+    FOOD,
+    PAPER
+} Good;
+
 typedef struct bid {
     Agent *agent;
     float price;
