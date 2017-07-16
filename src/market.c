@@ -86,6 +86,7 @@ void create_bid(Market *m, Agent *a, Good g, float price, float quantity)
         }
         m->bids[g][m->num_bids[g]]->agent = a;
         m->bids[g][m->num_bids[g]]->price = price;
+        m->bids[g][m->num_bids[g]]->init_quantity = quantity;
         m->bids[g][m->num_bids[g]]->quantity = quantity;
         m->bids[g][m->num_bids[g]]->status = UNDETERMINED;
         m->num_bids[g]++;
@@ -115,6 +116,7 @@ void create_ask(Market *m, Agent *a, Good g, float price, float quantity)
         }
         m->asks[g][m->num_asks[g]]->agent = a;
         m->asks[g][m->num_asks[g]]->price = price;
+        m->asks[g][m->num_asks[g]]->init_quantity = quantity;
         m->asks[g][m->num_asks[g]]->quantity = quantity;
         m->asks[g][m->num_asks[g]]->status = UNDETERMINED;
         m->num_asks[g]++;
@@ -187,9 +189,9 @@ void resolve_offers(Market *m)
         for (i = j = 0; i < m->num_bids[g] && j < m->num_asks[g];) {
             // Set up trade
             top_bid = m->bids[g][i];
-            top_bid->status = UNSUCCESSFUL;
+            top_bid->status = SUCCESSFUL;
             top_ask = m->asks[g][j];
-            top_ask->status = UNSUCCESSFUL;
+            top_ask->status = SUCCESSFUL;
             price = (top_bid->price + top_ask->price) / 2.0;
             quantity = MIN2(MIN2(top_bid->quantity, top_ask->quantity), top_bid->agent->currency / price);
             total_price += price * quantity;

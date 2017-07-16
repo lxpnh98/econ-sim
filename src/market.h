@@ -25,6 +25,7 @@ typedef enum good {
 typedef struct bid {
     Agent *agent;
     float price;
+    float init_quantity;
     float quantity;
     OfferStatus status;
 } Bid;
@@ -32,6 +33,7 @@ typedef struct bid {
 typedef struct ask {
     Agent *agent;
     float price;
+    float init_quantity;
     float quantity;
     OfferStatus status;
 } Ask;

@@ -31,14 +31,14 @@ void print_agent(Agent *a)
 void print_bid(Bid *b)
 {
     printf("Price: %f\n", b->price);
-    printf("Quantity: %f\n", b->quantity);
+    printf("Quantity: %f\n", b->init_quantity);
     printf("Status: %d\n", b->status);
 }
 
 void print_ask(Ask *a)
 {
     printf("Price: %f\n", a->price);
-    printf("Quantity: %f\n", a->quantity);
+    printf("Quantity: %f\n", a->init_quantity);
     printf("Status: %d\n", a->status);
 }
 
@@ -51,8 +51,8 @@ void print_market_info(Market *m, int bare)
             print_agent(m->agents[i]);
         }
     for (g = 0; g < NUM_GOODS; g++) {
-        printf("Mean: %f\n", m->mean[g]);
         printf("Good %s:\n", GOOD_NAME(g));
+        printf("Mean: %f\n", m->mean[GOOD(g)]);
         printf("Bids: %d\n", m->num_bids[GOOD(g)]);
         if (!bare)
             for (i = 0; i < m->num_bids[GOOD(g)]; i++) {
